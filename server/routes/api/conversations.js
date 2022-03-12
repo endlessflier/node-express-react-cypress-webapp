@@ -68,7 +68,7 @@ router.get("/", async (req, res, next) => {
       }
 
       // set properties for notification count and latest message preview
-      convoJSON.latestMessageText = convoJSON.messages[0].text;
+      convoJSON.latestMessageText = convoJSON.messages.text;
       conversations[i] = convoJSON;
     }
 
@@ -77,5 +77,28 @@ router.get("/", async (req, res, next) => {
     next(error);
   }
 });
+
+router.get('/updateReadStatus' , async (req,res,next) => {
+    var user1Id = req.query.user1Id;
+    var user2Id = req.query.user2Id;
+   // var 
+    const conversation = await Conversation.findAll({ where: {
+      [Op.or]: [{
+        user1Id: user1Id,
+        user2Id: user2Id,
+      }, {
+        user1Id : user2Id,
+        user2Id : user1Id
+      }],
+      
+    }});
+    var convId = conversation[0].id;
+    const messages = await Message.findAll({ where : { conversationId : convId, senderId : user2Id, read : false }});
+    messages.map((mess) => {
+      mess.update({ read : true });
+    });
+    res.statusCode = 200;
+    res.json();
+})
 
 module.exports = router;

@@ -10,7 +10,7 @@ import { SocketContext } from '../context/socket';
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    height: '100vh',
+    // height: '100vh',
   },
 }));
 
@@ -49,6 +49,69 @@ const Home = ({ user, logout }) => {
     setConversations((prev) => prev.filter((convo) => convo.id));
   };
 
+  const updateReadStatus = (username) => {
+    var conversation = conversations.filter((i) => i.otherUser.username == username)[0];
+    var otherUser = conversation.otherUser;
+
+     axios.get(`/api/conversations/updateReadStatus?user1Id=${user.id}&user2Id=${otherUser.id}`).then((resp) => {
+       sendReadMessage(conversation.id);
+     });
+  }
+
+  const updateConversationAsRead = (username) => {
+    var conversation = conversations.filter((i) => i.otherUser.username == username)[0];
+
+    var convs = conversations.map((i => {
+      if(i.id == conversation.id){
+         var c = i;
+         c.messages = i.messages.map((i) =>{
+           if(i.senderId != user.id){
+              i.read = true; return i;
+           }
+           else
+              return i;
+         });
+         return c;
+      }
+      else 
+        return i;
+    }));
+    setConversations(convs);
+    
+  }
+
+  const updateReadConversation = (data) =>{
+    debugger;
+    var conversationid = data.conversationid;
+    var conversation = conversations.filter((i) => i.id == conversationid )[0];
+
+    var convs = conversations.map((i => {
+      if(i.id == conversation.id){
+         var c = i;
+         c.messages = i.messages.map((i) =>{
+           if(i.senderId == user.id){
+              i.read = true; return i;
+           }
+           else
+              return i;
+         });
+         return c;
+      }
+      else 
+        return i;
+    }));
+    setConversations(convs);
+  }
+
+
+  const getUser = (username) => {
+    var convo = conversations.filter((i) => i.otherUser.username == username);
+    if(convo.length > 0){
+      return convo[0].otherUser;
+    }
+    return null;
+  }
+
   const saveMessage = async (body) => {
     const { data } = await axios.post('/api/messages', body);
     return data;
@@ -61,6 +124,12 @@ const Home = ({ user, logout }) => {
       sender: data.sender,
     });
   };
+
+  const sendReadMessage = (conversationid, body) => {
+    socket.emit('read-message', {
+       conversationid : conversationid
+    });
+  }
 
   const postMessage = async (body) => {
     try {
@@ -100,6 +169,18 @@ const Home = ({ user, logout }) => {
     (data) => {
       // if sender isn't null, that means the message needs to be put in a brand new convo
       const { message, sender = null } = data;
+      debugger;
+      if(message.senderId != user.id &&  activeConversation != null && activeConversation != ''){
+        var activeuser = getUser(activeConversation);
+        var filteredConversations = conversations.filter((i) => i.id == message.conversationId);
+        debugger;
+        if(filteredConversations.length > 0 && filteredConversations[0].otherUser.id == activeuser.id){
+          //it is possible to improve this code by getting the scroll position and checking if it at the bottom
+          message.read = true;
+          updateReadStatus(activeConversation);
+        }
+      }
+
       if (sender !== null) {
         const newConvo = {
           id: message.conversationId,
@@ -123,11 +204,14 @@ const Home = ({ user, logout }) => {
         })
       );
     },
-    [setConversations]
+    [setConversations,conversations, activeConversation]
   );
 
   const setActiveChat = (username) => {
     setActiveConversation(username);
+    updateReadStatus(username);
+    updateConversationAsRead(username);
+
   };
 
   const addOnlineUser = useCallback((id) => {
@@ -165,13 +249,14 @@ const Home = ({ user, logout }) => {
     socket.on('add-online-user', addOnlineUser);
     socket.on('remove-offline-user', removeOfflineUser);
     socket.on('new-message', addMessageToConversation);
-
+    socket.on('read-message', updateReadConversation);
     return () => {
       // before the component is destroyed
       // unbind all event handlers used in this component
       socket.off('add-online-user', addOnlineUser);
       socket.off('remove-offline-user', removeOfflineUser);
       socket.off('new-message', addMessageToConversation);
+      socket.off('read-message', updateReadConversation);
     };
   }, [addMessageToConversation, addOnlineUser, removeOfflineUser, socket]);
 

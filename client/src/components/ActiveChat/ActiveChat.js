@@ -16,6 +16,9 @@ const useStyles = makeStyles(() => ({
     flexDirection: 'column',
     flexGrow: 1,
     justifyContent: 'space-between',
+    height: '70vh',
+    overflowY : 'scroll',
+    // height : '50vh'
   },
 }));
 
@@ -26,6 +29,15 @@ const ActiveChat = ({
   postMessage,
 }) => {
   const classes = useStyles();
+
+
+
+  React.useEffect(() => {
+    var elem = document.getElementById("message-input");
+    if(elem != undefined && elem != null){
+      elem.scrollIntoView();
+    }
+  },[activeConversation])
 
   const conversation = conversations
     ? conversations.find(
@@ -45,7 +57,7 @@ const ActiveChat = ({
             username={conversation.otherUser.username}
             online={conversation.otherUser.online || false}
           />
-          <Box className={classes.chatContainer}>
+          <Box className={classes.chatContainer} > 
             {user && (
               <>
                 <Messages

@@ -48,6 +48,7 @@ const Input = ({ otherUser, conversationId, user, postMessage }) => {
           value={text}
           name="text"
           onChange={handleChange}
+          id="message-input"
         />
       </FormControl>
     </form>
